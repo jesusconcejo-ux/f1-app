@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+  <title>APEX TELEMETRY // F1 OPS CENTER</title>
+
+  <!-- Google Fonts: Space Grotesk, JetBrains Mono, Geist -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#ffb4a8",
+            "primary-container": "#e10600",
+            "on-primary-container": "#fff2f0",
+            "inverse-primary": "#c00500",
+            "secondary": "#47efda",
+            "secondary-container": "#01d2be",
+            "tertiary": "#ffba20",
+            "tertiary-container": "#926800",
+            "surface": "#111317",
+            "surface-container-lowest": "#0c0e11",
+            "surface-container-low": "#15171a",
+            "surface-container": "#1e2023",
+            "surface-container-high": "#282a2d",
+            "surface-container-highest": "#333538",
+            "outline-variant": "#44474a",
+            "on-surface": "#e2e2e6",
+            "on-surface-variant": "#9ba0a6",
+            "background": "#0b0c0e"
+          },
+          fontFamily: {
+            "label-caps": ["Space Grotesk", "sans-serif"],
+            "label-telemetry": ["JetBrains Mono", "monospace"],
+            "headline": ["Space Grotesk", "sans-serif"],
+            "body": ["Geist", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #0c0e11; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #282a2d; border-radius: 2px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #47efda; }
+    .track-official-img {
+      transition: filter 0.25s ease, transform 0.25s ease;
+      max-height: 100%;
+      max-width: 100%;
+      object-fit: contain;
+    }
+    .filter-telemetry {
+      filter: brightness(1.15) contrast(1.3) drop-shadow(0 0 10px rgba(71, 239, 218, 0.45));
+    }
+    .filter-official {
+      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
+    }
+    .view-pane { display: none; animation: paneFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1); }
+    .view-pane.active { display: block; }
+    @keyframes paneFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .pb-safe { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px)); }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body antialiased min-h-screen flex flex-col pb-safe lg:pb-0 selection:bg-primary-container selection:text-on-primary-container">
+
+  <!-- TOP APP BAR -->
+  <header class="w-full h-14 px-3 sm:px-6 flex items-center justify-between border-b border-surface-container-highest bg-surface-container-lowest z-40 sticky top-0 shadow-lg">
+    <div class="flex items-center gap-3 sm:gap-6 h-full">
+      <div class="flex items-center gap-2 cursor-pointer select-none" onclick="switchView('dashboard')">
+        <span class="inline-block w-2.5 h-2.5 bg-primary-container rotate-45 flex-shrink-0"></span>
+        <span class="text-xs sm:text-sm md:text-base font-headline uppercase tracking-wider text-primary font-bold whitespace-nowrap">
+          APEX <span class="hidden sm:inline text-on-surface">// F1 OPS</span>
+        </span>
+        <span id="topSeasonBadge" class="bg-surface-container border border-surface-variant text-secondary text-[10px] md:text-xs font-label-telemetry px-1.5 py-0.5 rounded font-mono">
+          2025/2026
+        </span>
+      </div>
+
+      <!-- Desktop Navigation (Dashboard & Calendario) -->
+      <nav class="hidden lg:flex items-center gap-1 h-full text-xs font-label-caps">
+        <button id="nav-dashboard" onclick="switchView('dashboard')" class="text-secondary border-b-2 border-secondary font-bold h-full flex items-center px-4 uppercase tracking-wider transition-colors">
+          <span class="material-symbols-outlined text-[16px] mr-1.5">dashboard</span> Dashboard
+        </button>
+        <button id="nav-calendar" onclick="switchView('calendar')" class="text-on-surface-variant hover:text-secondary font-medium h-full flex items-center px-4 uppercase tracking-wider transition-colors">
+          <span class="material-symbols-outlined text-[16px] mr-1.5">calendar_month</span> Calendario
+        </button>
+      </nav>
+    </div>
+
+    <!-- Right Controls: Visual Mode, API Status & JSON Backup -->
+    <div class="flex items-center gap-2 sm:gap-3">
+      <!-- Circuit Filter Mode Toggle -->
+      <button id="btnFilterMode" onclick="toggleCircuitFilterMode()" title="Alternar filtro visual del trazado" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-surface-container border border-surface-container-highest text-[10px] font-label-caps text-secondary hover:border-secondary transition-colors">
+        <span class="material-symbols-outlined text-[14px]">tune</span>
+        <span id="filterModeText">MODO TELEMETRÍA</span>
+      </button>
+
+      <!-- API Status Pill -->
+      <div class="flex items-center gap-1.5 bg-surface-container-low px-2.5 py-1 border border-surface-container-highest">
+        <span class="relative flex h-2 w-2">
+          <span id="apiPulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+          <span id="apiDot" class="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
+        </span>
+        <span id="apiStatusText" class="font-label-caps text-[10px] sm:text-xs text-secondary font-bold tracking-wider">LIVE FEED</span>
+        <button onclick="fetchF1Data(true)" title="Resincronizar con la API oficial" class="ml-1 text-on-surface-variant hover:text-secondary p-0.5">
+          <span id="syncIcon" class="material-symbols-outlined text-[14px]">sync</span>
+        </button>
+      </div>
+
+      <!-- Realtime Clocks -->
+      <div class="hidden xl:flex items-center gap-2 font-label-telemetry text-xs bg-surface-container-low px-2.5 py-1 border border-surface-container-highest">
+        <span class="text-secondary" id="utcClock">--:--:-- UTC</span>
+        <span class="text-surface-variant">|</span>
+        <span id="localClock" class="text-on-surface">--:-- LOCAL</span>
+      </div>
+
+      <!-- Desktop JSON File Actions -->
+      <div class="hidden md:flex items-center gap-1.5">
+        <button onclick="exportToJSON()" class="px-2.5 py-1.5 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-secondary text-xs font-label-caps flex items-center gap-1 transition-colors" title="Descargar fichero JSON con clasificaciones y resultados oficiales">
+          <span class="material-symbols-outlined text-[15px]">download</span>
+          <span>EXPORTAR</span>
+        </button>
+        <label class="px-2.5 py-1.5 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-on-surface text-xs font-label-caps flex items-center gap-1 transition-colors cursor-pointer" title="Cargar fichero JSON previo">
+          <span class="material-symbols-outlined text-[15px] text-tertiary">upload_file</span>
+          <span>IMPORTAR</span>
+          <input type="file" id="jsonDesktopInput" accept=".json" class="hidden" onchange="importFromJSON(event)"/>
+        </label>
+      </div>
+
+      <!-- Mobile JSON Trigger -->
+      <button onclick="toggleMobileJsonModal(true)" class="md:hidden p-1.5 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-secondary flex items-center justify-center">
+        <span class="material-symbols-outlined text-[18px]">folder_zip</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN VIEWPORT -->
+  <main class="flex-1 w-full max-w-[1920px] mx-auto p-3 sm:p-5 lg:p-6 space-y-5">
+
+    <!-- ==================== VIEW 1: DASHBOARD ==================== -->
+    <div id="view-dashboard" class="view-pane active space-y-5">
+      
+      <!-- HERO: NEXT GRAND PRIX TELEMETRY & OFFICIAL FORMULA 1 MAP -->
+      <section class="relative bg-surface-container-lowest border border-surface-container-highest overflow-hidden shadow-2xl">
+        <div class="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-primary-container via-secondary to-tertiary"></div>
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-0">
+          
+          <!-- Column 1: Identification & Precision Countdown (5 cols) -->
+          <div class="xl:col-span-5 p-4 sm:p-6 flex flex-col justify-between border-b xl:border-b-0 xl:border-r border-surface-container-highest bg-gradient-to-br from-surface-container-lowest to-surface-container-low">
+            <div>
+              <div class="flex items-center gap-2 mb-2 flex-wrap">
+                <span id="heroRoundBadge" class="px-2 py-0.5 bg-primary-container text-on-primary-container text-[10px] sm:text-xs font-label-caps font-bold uppercase tracking-wider">
+                  ROUND -- // OFICIAL FIA
+                </span>
+                <span id="heroSeasonBadge" class="text-xs font-label-telemetry text-secondary flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 bg-secondary rounded-full animate-pulse"></span>
+                  FIA FORMULA 1 CALENDAR
+                </span>
+              </div>
+              <div class="flex items-baseline gap-2.5 flex-wrap">
+                <h1 id="heroRaceTitle" class="text-xl sm:text-2xl md:text-3xl font-headline text-on-surface uppercase tracking-tight font-bold">
+                  CARGANDO PRÓXIMA CARRERA...
+                </h1>
+                <span id="heroRaceFlag" class="text-2xl">🏁</span>
+              </div>
+              <p id="heroCircuitLocation" class="text-xs sm:text-sm font-body text-on-surface-variant flex items-center gap-1 mt-1">
+                <span class="material-symbols-outlined text-[16px] text-primary flex-shrink-0">location_on</span>
+                <span class="truncate">Sintonizando telemetría del trazado oficial...</span>
+              </p>
+            </div>
+
+            <!-- Countdown Timer -->
+            <div class="my-4 py-3 border-y border-surface-container-highest">
+              <div class="text-[10px] sm:text-xs font-label-caps text-on-surface-variant mb-2 flex items-center justify-between">
+                <div class="flex items-center gap-1.5 truncate">
+                  <span class="material-symbols-outlined text-[15px] text-tertiary flex-shrink-0">timer</span>
+                  <span id="heroCountdownLabel" class="truncate uppercase">CUENTA ATRÁS GP</span>
+                </div>
+                <span id="heroCountdownTargetDate" class="font-label-telemetry text-secondary ml-2 font-mono">--:--:--</span>
+              </div>
+              <div class="grid grid-cols-4 gap-2 text-center font-label-telemetry">
+                <div class="bg-surface-container p-2 border border-surface-container-high">
+                  <div id="cd-days" class="text-xl sm:text-2xl md:text-3xl font-bold text-on-surface leading-none">00</div>
+                  <div class="text-[9px] sm:text-[10px] font-label-caps text-on-surface-variant mt-1">DÍAS</div>
+                </div>
+                <div class="bg-surface-container p-2 border border-surface-container-high">
+                  <div id="cd-hours" class="text-xl sm:text-2xl md:text-3xl font-bold text-on-surface leading-none">00</div>
+                  <div class="text-[9px] sm:text-[10px] font-label-caps text-on-surface-variant mt-1">HORAS</div>
+                </div>
+                <div class="bg-surface-container p-2 border border-surface-container-high">
+                  <div id="cd-mins" class="text-xl sm:text-2xl md:text-3xl font-bold text-secondary leading-none">00</div>
+                  <div class="text-[9px] sm:text-[10px] font-label-caps text-on-surface-variant mt-1">MIN</div>
+                </div>
+                <div class="bg-surface-container p-2 border border-surface-container-high">
+                  <div id="cd-secs" class="text-xl sm:text-2xl md:text-3xl font-bold text-primary leading-none">00</div>
+                  <div class="text-[9px] sm:text-[10px] font-label-caps text-on-surface-variant mt-1">SEG</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer bar of Hero Left -->
+            <div class="flex items-center justify-between font-label-telemetry text-[11px] text-on-surface-variant">
+              <span id="heroUserTimezone" class="truncate text-secondary">ZONA DETECTADA LOCAL</span>
+              <button onclick="goToCurrentHeroDetail()" class="text-secondary hover:text-on-surface flex items-center gap-1 font-label-caps text-[11px] transition-colors">
+                VER FICHA GP <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Column 2: OFFICIAL F1 CDN HIGH-RESOLUTION MAP & SPECS (4 cols) -->
+          <div class="xl:col-span-4 p-4 sm:p-6 border-b xl:border-b-0 xl:border-r border-surface-container-highest flex flex-col justify-between bg-surface-container-low">
+            <div>
+              <div class="flex items-center justify-between mb-2.5">
+                <span class="text-xs font-label-caps text-on-surface-variant uppercase flex items-center gap-1 font-bold">
+                  <span class="material-symbols-outlined text-[16px] text-secondary">map</span>
+                  MAPA OFICIAL FORMULA 1
+                </span>
+                <span id="heroCircuitAero" class="text-[10px] font-label-telemetry text-tertiary bg-surface-container px-2 py-0.5 border border-tertiary-container">
+                  CARGA: ALTA
+                </span>
+              </div>
+
+              <!-- Official Track Image Container -->
+              <div class="relative w-full h-48 sm:h-52 bg-surface-container-lowest border border-surface-container-high p-3 flex items-center justify-center overflow-hidden group">
+                <div class="absolute inset-0 bg-[radial-gradient(#1e2023_1px,transparent_1px)] [background-size:14px_14px] opacity-40"></div>
+                
+                <div id="heroCircuitImgContainer" class="relative w-full h-full flex items-center justify-center z-10">
+                  <!-- CDN image rendered dynamically -->
+                </div>
+
+                <div class="absolute bottom-2 left-2 text-[9px] font-label-telemetry text-on-surface-variant bg-surface-container-lowest/90 px-1.5 py-0.5 border border-surface-container-high">
+                  <span id="heroTrackOverlayName">CIRCUIT</span>
+                </div>
+                <div id="heroDrsTag" class="absolute bottom-2 right-2 text-[9px] font-label-telemetry text-secondary bg-surface-container-lowest/90 px-1.5 py-0.5 border border-secondary/40 font-bold">
+                  MEDIA.FORMULA1.COM OFICIAL
+                </div>
+              </div>
+
+              <!-- Technical Specifications Grid -->
+              <div class="grid grid-cols-2 gap-2 mt-3 font-label-telemetry text-xs">
+                <div class="bg-surface-container p-2 border border-surface-container-high">
+                  <span class="text-on-surface-variant block text-[9px] font-label-caps uppercase">LONGITUD POR VUELTA</span>
+                  <span id="heroSpecLength" class="text-sm font-headline text-on-surface font-semibold">-- km</span>
+                </div>
+                <div class="bg-surface-container p-2 border border-surface-container-high">
+                  <span class="text-on-surface-variant block text-[9px] font-label-caps uppercase">DISTANCIA TOTAL</span>
+                  <span id="heroSpecLaps" class="text-sm font-headline text-on-surface font-semibold">-- Vueltas</span>
+                </div>
+                <div class="bg-surface-container p-2 border border-surface-container-high">
+                  <span class="text-on-surface-variant block text-[9px] font-label-caps uppercase">RÉCORD DE VUELTA</span>
+                  <span id="heroSpecRecordTime" class="text-secondary font-bold text-xs truncate block">--</span>
+                  <span id="heroSpecRecordHolder" class="text-[9px] text-on-surface-variant block truncate">--</span>
+                </div>
+                <div class="bg-surface-container p-2 border border-surface-container-high">
+                  <span class="text-on-surface-variant block text-[9px] font-label-caps uppercase">CONFIGURACIÓN DRS</span>
+                  <span id="heroSpecDrs" class="text-primary font-bold text-xs block">--</span>
+                  <span id="heroSpecCorners" class="text-[9px] text-on-surface-variant block truncate">--</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-3 pt-2 border-t border-surface-container-highest flex items-center justify-between text-[11px] font-label-telemetry text-on-surface-variant">
+              <span>COORDENADAS GPS:</span>
+              <span id="heroCircuitCoords" class="text-secondary font-mono">--.----, --.----</span>
+            </div>
+          </div>
+
+          <!-- Column 3: Real Local Weekend Timetable (3 cols) -->
+          <div class="xl:col-span-3 p-4 sm:p-6 bg-surface-container-lowest flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-label-caps text-on-surface-variant uppercase flex items-center gap-1 font-bold">
+                  <span class="material-symbols-outlined text-[16px] text-primary">calendar_clock</span>
+                  HORARIOS EN HORA LOCAL
+                </span>
+                <span id="heroWeekendFormat" class="text-[10px] font-label-telemetry text-secondary bg-surface-container px-1.5 py-0.5 border border-surface-container-highest">
+                  FORMATO
+                </span>
+              </div>
+
+              <!-- Local Sessions Dynamic List -->
+              <div id="heroSessionsList" class="space-y-1.5 font-label-telemetry text-xs">
+                <!-- Session items rendered dynamically -->
+              </div>
+            </div>
+
+            <div class="mt-4 pt-2 border-t border-surface-container-highest flex items-center justify-between text-xs font-label-telemetry">
+              <span class="text-on-surface-variant text-[10px]">AUTO-CONVERSIÓN UTC</span>
+              <button onclick="switchView('calendar')" class="text-secondary hover:text-on-surface flex items-center gap-1 font-label-caps text-[11px]">
+                CALENDARIO COMPLETO <span class="material-symbols-outlined text-[13px]">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- CHAMPIONSHIP STANDINGS: DRIVERS & CONSTRUCTORS -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        
+        <!-- Drivers Standings (7 cols) -->
+        <section class="lg:col-span-7 space-y-3">
+          <div class="bg-surface-container-low border border-surface-container-highest p-3 sm:p-4 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+              <div class="w-1.5 h-6 bg-primary-container flex-shrink-0"></div>
+              <div>
+                <h2 class="text-sm sm:text-base font-headline text-on-surface uppercase tracking-tight font-bold flex items-center gap-1.5">
+                  MUNDIAL DE PILOTOS
+                  <span id="driversSeasonBadge" class="text-[10px] font-label-caps text-secondary bg-surface-container px-1.5 py-0.5 border border-surface-variant font-normal">
+                    2025/2026
+                  </span>
+                </h2>
+                <p class="text-[11px] font-body text-on-surface-variant">Clasificación oficial FIA en tiempo real</p>
+              </div>
+            </div>
+            
+            <div class="flex items-center gap-1 font-label-telemetry text-xs flex-shrink-0">
+              <button id="btnSortPts" onclick="setDriverSort('points')" class="bg-surface-container text-secondary px-2.5 py-1 border border-secondary font-bold text-xs">PTS</button>
+              <button id="btnSortWins" onclick="setDriverSort('wins')" class="bg-surface-container text-on-surface-variant px-2.5 py-1 border border-surface-variant hover:text-on-surface text-xs">VIC</button>
+            </div>
+          </div>
+
+          <!-- Drivers Table -->
+          <div class="bg-surface-container-lowest border border-surface-container-highest overflow-x-auto custom-scrollbar shadow-md">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-surface-container-low border-b border-surface-container-highest font-label-caps text-on-surface-variant text-[10px]">
+                  <th class="py-2.5 px-2 text-center w-8">POS</th>
+                  <th class="py-2.5 px-1 w-8 text-center hidden xs:table-cell">N°</th>
+                  <th class="py-2.5 px-3">PILOTO / ESCUDERÍA</th>
+                  <th class="py-2.5 px-2 text-center hidden sm:table-cell">VIC</th>
+                  <th class="py-2.5 px-2 text-right hidden sm:table-cell">DIF.</th>
+                  <th class="py-2.5 px-4 text-right">PTS</th>
+                </tr>
+              </thead>
+              <tbody id="driversTableBody" class="divide-y divide-surface-container-high font-label-telemetry text-xs">
+                <!-- Injected via JavaScript -->
+              </tbody>
+            </table>
+            <div class="p-2.5 bg-surface-container-low border-t border-surface-container-highest flex items-center justify-between font-label-telemetry text-on-surface-variant text-[11px]">
+              <span id="driversCountSummary">MOSTRANDO PILOTOS...</span>
+              <button id="btnToggleAllDrivers" onclick="toggleAllDriversView()" class="text-secondary hover:text-on-surface flex items-center gap-1">
+                MOSTRAR COMPLETA <span class="material-symbols-outlined text-[15px]">expand_more</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Constructors Standings (5 cols) -->
+        <section class="lg:col-span-5 space-y-3">
+          <div class="bg-surface-container-low border border-surface-container-highest p-3 sm:p-4 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-1.5 h-6 bg-secondary flex-shrink-0"></div>
+              <div>
+                <h2 class="text-sm sm:text-base font-headline text-on-surface uppercase tracking-tight font-bold">
+                  MUNDIAL DE CONSTRUCTORES
+                </h2>
+                <p class="text-[11px] font-body text-on-surface-variant">Copa de Escuderías FIA</p>
+              </div>
+            </div>
+            <span class="text-[10px] font-label-caps text-on-surface bg-surface-container px-2 py-0.5 border border-surface-variant">
+              10 EQUIPOS
+            </span>
+          </div>
+
+          <!-- Constructors Cards -->
+          <div id="constructorsListContainer" class="bg-surface-container-lowest border border-surface-container-highest p-3 space-y-2 shadow-md">
+            <!-- Dynamically populated cards with relative progress bars -->
+          </div>
+        </section>
+      </div>
+
+    </div>
+
+    <!-- ==================== VIEW 2: FULL SEASON CALENDAR ==================== -->
+    <div id="view-calendar" class="view-pane space-y-4">
+      <div class="bg-surface-container-low border border-surface-container-highest p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-2 h-7 bg-tertiary flex-shrink-0"></div>
+          <div>
+            <h2 class="text-base sm:text-lg font-headline uppercase tracking-tight font-bold text-on-surface">
+              CALENDARIO OFICIAL FIA FORMULA 1
+            </h2>
+            <p class="text-xs text-on-surface-variant">Pulsa en cualquier Gran Premio para ver su ficha técnica, trazado oficial y resultados oficiales automáticos</p>
+          </div>
+        </div>
+        <div class="text-xs font-label-telemetry text-on-surface-variant flex items-center gap-2">
+          <span>TEMPORADA:</span>
+          <span id="calendarSeasonLabel" class="bg-surface-container text-secondary px-2 py-0.5 border border-surface-container-highest font-bold">2025</span>
+        </div>
+      </div>
+
+      <!-- Calendar Cards Grid -->
+      <div id="calendarGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        <!-- Injected via JavaScript -->
+      </div>
+    </div>
+
+    <!-- ==================== VIEW 3: RACE & CIRCUIT DOSSIER ==================== -->
+    <div id="view-race-detail" class="view-pane space-y-5">
+      <!-- Back Bar -->
+      <div class="bg-surface-container-low border border-surface-container-highest p-3 sm:p-4 flex items-center justify-between gap-2 flex-wrap">
+        <button onclick="switchView('calendar')" class="px-3 py-1.5 bg-surface-container hover:bg-surface-container-high border border-outline-variant text-secondary text-xs font-label-caps flex items-center gap-1.5 transition-colors uppercase font-bold">
+          <span class="material-symbols-outlined text-[16px]">arrow_back</span> VOLVER AL CALENDARIO
+        </button>
+        <div class="flex items-center gap-2">
+          <button id="btnFetchOfficialResults" onclick="fetchOfficialResultsForDetail(true)" class="px-3 py-1.5 bg-primary-container hover:bg-inverse-primary text-on-primary-container text-xs font-label-caps uppercase font-bold flex items-center gap-1.5 transition-colors shadow-sm">
+            <span id="fetchResultsIcon" class="material-symbols-outlined text-[16px]">sync</span>
+            <span>ACTUALIZAR RESULTADOS OFICIALES</span>
+          </button>
+          <span id="detailBreadcrumb" class="hidden sm:inline text-xs font-label-telemetry text-on-surface-variant">
+            DOSSIER TÉCNICO OFICIAL DE CARRERA
+          </span>
+        </div>
+      </div>
+
+      <!-- Main Dossier Card -->
+      <section class="bg-surface-container-lowest border border-surface-container-highest overflow-hidden shadow-2xl">
+        <div class="p-4 sm:p-6 border-b border-surface-container-highest bg-gradient-to-r from-surface-container-low to-surface-container-lowest flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1.5">
+              <span id="detailRoundBadge" class="px-2 py-0.5 bg-primary-container text-on-primary-container text-[10px] font-label-caps uppercase font-bold">ROUND --</span>
+              <span id="detailStatusBadge" class="text-[11px] font-label-telemetry text-secondary font-bold">OFICIAL</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <h1 id="detailRaceTitle" class="text-xl sm:text-2xl lg:text-3xl font-headline font-bold text-on-surface uppercase">GRAN PREMIO</h1>
+              <span id="detailRaceFlag" class="text-2xl sm:text-3xl">🏁</span>
+            </div>
+            <p id="detailCircuitLocation" class="text-xs sm:text-sm text-on-surface-variant flex items-center gap-1 mt-1 font-body">
+              <span class="material-symbols-outlined text-[16px] text-primary">location_on</span> Circuito y localización
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span id="detailRaceCompletionStatus" class="px-3 py-1.5 bg-surface-container border border-surface-container-highest font-label-telemetry text-xs text-secondary flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-secondary"></span> ESTADO GP
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-surface-container-highest">
+          
+          <!-- Circuit Geometry & Verified Layout (6 cols) -->
+          <div class="lg:col-span-6 p-4 sm:p-6 space-y-4">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-label-caps uppercase text-secondary font-bold flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px]">map</span> MAPA OFICIAL FORMULA 1 (MEDIA CDN)
+              </span>
+              <span id="detailCircuitDrsBadge" class="text-[10px] font-label-telemetry text-primary bg-surface-container px-2 py-0.5 border border-primary-container/50">
+                DRS OFICIAL
+              </span>
+            </div>
+
+            <!-- Authentic Circuit Visual Container with Official High-Res Map -->
+            <div class="relative w-full h-72 sm:h-80 bg-surface-container-low border border-surface-container-high p-4 flex items-center justify-center overflow-hidden">
+              <div class="absolute inset-0 bg-[radial-gradient(#1e2023_1px,transparent_1px)] [background-size:14px_14px] opacity-40"></div>
+              
+              <div id="detailCircuitImgContainer" class="relative w-full h-full flex items-center justify-center z-10">
+                <!-- High-res official map injected here -->
+              </div>
+
+              <!-- Circuit Badge Tag -->
+              <div class="absolute top-3 left-3 text-[10px] font-label-telemetry text-on-surface bg-surface-container-lowest/90 px-2 py-1 border border-surface-container-high">
+                <span id="detailTrackNameOverlay">CIRCUITO</span>
+              </div>
+              <div class="absolute bottom-3 right-3 text-[9px] font-label-telemetry text-secondary bg-surface-container-lowest/90 px-1.5 py-0.5 border border-secondary/40 font-bold">
+                HOMOLOGADO FIA
+              </div>
+            </div>
+
+            <!-- Certified Specs Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-label-telemetry">
+              <div class="bg-surface-container p-2.5 border border-surface-container-high">
+                <span class="text-on-surface-variant block text-[9px] font-label-caps uppercase">LONGITUD POR VUELTA</span>
+                <span id="detailSpecLength" class="text-sm font-headline text-on-surface font-semibold">-- km</span>
+              </div>
+              <div class="bg-surface-container p-2.5 border border-surface-container-high">
+                <span class="text-on-surface-variant block text-[9px] font-label-caps uppercase">TOTAL VUELTAS</span>
+                <span id="detailSpecLaps" class="text-sm font-headline text-on-surface font-semibold">-- VUELTAS</span>
+              </div>
+              <div class="bg-surface-container p-2.5 border border-surface-container-high">
+                <span class="text-on-surface-variant block text-[9px] font-label-caps uppercase">DISTANCIA TOTAL</span>
+                <span id="detailSpecDist" class="text-sm font-headline text-on-surface font-semibold">-- km</span>
+              </div>
+              <div class="bg-surface-container p-2.5 border border-surface-container-high">
+                <span class="text-on-surface-variant block text-[9px] font-label-caps uppercase">CARGA AERO</span>
+                <span id="detailSpecDownforce" class="text-sm font-headline text-tertiary font-semibold">--</span>
+              </div>
+            </div>
+
+            <!-- Lap Record Row -->
+            <div class="bg-surface-container-low border border-surface-container-highest p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-label-telemetry text-xs">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px] text-secondary">timer</span>
+                <span class="text-on-surface-variant text-[11px] font-label-caps">RÉCORD OFICIAL DE VUELTA:</span>
+                <span id="detailSpecRecordTime" class="text-secondary font-bold text-sm">--:--.---</span>
+              </div>
+              <div id="detailSpecRecordHolder" class="text-on-surface-variant text-xs">
+                --
+              </div>
+            </div>
+
+            <!-- Sessions Timeline -->
+            <div class="pt-2">
+              <h3 class="text-xs font-label-caps uppercase text-on-surface font-bold flex items-center gap-1.5 pb-2 border-b border-surface-container-highest mb-2">
+                <span class="material-symbols-outlined text-[16px] text-primary">schedule</span>
+                HORARIOS DE TODAS LAS SESIONES (HORA LOCAL)
+              </h3>
+              <div id="detailSessionsList" class="space-y-1.5 text-xs font-body">
+                <!-- Dynamically injected sessions -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Official Results Classification Table (6 cols) -->
+          <div class="lg:col-span-6 p-4 sm:p-6 space-y-4 bg-surface-container-lowest">
+            <div class="flex items-center justify-between pb-2 border-b border-surface-container-highest">
+              <h3 class="text-xs sm:text-sm font-label-caps uppercase text-on-surface font-bold flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px] text-tertiary">sports_score</span>
+                RESULTADOS OFICIALES FIA DEL GRAN PREMIO
+              </h3>
+              <span id="officialResultsSyncStatus" class="text-[10px] font-label-telemetry text-on-surface-variant">
+                LECTURA AUTOMÁTICA
+              </span>
+            </div>
+
+            <div id="detailResultsContainer" class="min-h-[300px]">
+              <!-- Dynamically populated official classification table or countdown badge -->
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- MOBILE BOTTOM NAVIGATION (Thumb Accessible: Dashboard & Calendario) -->
+  <nav class="lg:hidden fixed bottom-0 left-0 right-0 h-14 bg-surface-container-lowest border-t border-surface-container-highest z-50 flex items-center justify-around px-2 shadow-2xl">
+    <button onclick="switchView('dashboard')" id="mob-nav-dashboard" class="flex flex-col items-center justify-center text-secondary w-20 py-1">
+      <span class="material-symbols-outlined text-[20px]">dashboard</span>
+      <span class="text-[9px] font-label-caps mt-0.5 font-bold uppercase">Tablero</span>
+    </button>
+    <button onclick="switchView('calendar')" id="mob-nav-calendar" class="flex flex-col items-center justify-center text-on-surface-variant w-20 py-1">
+      <span class="material-symbols-outlined text-[20px]">calendar_month</span>
+      <span class="text-[9px] font-label-caps mt-0.5 font-bold uppercase">Calendario</span>
+    </button>
+    <button onclick="toggleMobileJsonModal(true)" class="flex flex-col items-center justify-center text-tertiary w-20 py-1">
+      <span class="material-symbols-outlined text-[20px]">folder_zip</span>
+      <span class="text-[9px] font-label-caps mt-0.5 font-bold uppercase">JSON</span>
+    </button>
+  </nav>
+
+  <!-- MOBILE JSON DRAWER / MODAL -->
+  <div id="mobileJsonModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-3">
+    <div class="bg-surface-container-low border border-surface-container-highest w-full max-w-sm p-4 space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-surface-container-highest pb-2">
+        <span class="text-xs font-label-caps uppercase text-secondary font-bold flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[18px]">folder_zip</span> PORTABILIDAD MULTI-PC
+        </span>
+        <button onclick="toggleMobileJsonModal(false)" class="text-on-surface-variant hover:text-on-surface">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+      <p class="text-xs text-on-surface-variant leading-relaxed">
+        Descarga todos los resultados oficiales leídos y clasificaciones a un fichero JSON, o cárgalo para continuar en cualquier otro PC sin volver a descargarlos.
+      </p>
+      <div class="space-y-2 pt-1">
+        <button onclick="exportToJSON(); toggleMobileJsonModal(false);" class="w-full py-2.5 bg-surface-container hover:bg-surface-container-high border border-surface-container-highest text-secondary text-xs font-label-caps uppercase font-bold flex items-center justify-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px]">download</span> DESCARGAR FICHERO JSON
+        </button>
+        <label class="w-full py-2.5 bg-primary-container text-on-primary-container text-xs font-label-caps uppercase font-bold flex items-center justify-center gap-1.5 cursor-pointer">
+          <span class="material-symbols-outlined text-[16px]">upload_file</span> IMPORTAR ARCHIVO JSON
+          <input type="file" id="jsonMobileInput" accept=".json" class="hidden" onchange="importFromJSON(event); toggleMobileJsonModal(false);"/>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION SCRIPTS -->
+  <script>
+    /**
+     * BASE DE DATOS DEFINITIVA DE CIRCUITOS CON MAPAS OFICIALES DE MEDIA.FORMULA1.COM
+     */
+    const OFFICIAL_CIRCUITS_MAPS = {
+      "catalunya": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Spain_Circuit.png",
+        length: "4.657", laps: 66, distance: "307.236",
+        record: { time: "1:16.330", driver: "Max Verstappen (2023)" },
+        downforce: "ALTA", drsZones: "2 ZONAS", corners: "14 Curvas"
+      },
+      "monaco": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Monaco_Circuit.png",
+        length: "3.337", laps: 78, distance: "260.286",
+        record: { time: "1:12.909", driver: "Lewis Hamilton (2021)" },
+        downforce: "MÁXIMA", drsZones: "1 ZONA", corners: "19 Curvas"
+      },
+      "silverstone": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Great_Britain_Circuit.png",
+        length: "5.891", laps: 52, distance: "306.198",
+        record: { time: "1:27.097", driver: "Max Verstappen (2020)" },
+        downforce: "MEDIA-ALTA", drsZones: "2 ZONAS", corners: "18 Curvas"
+      },
+      "spa": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Belgium_Circuit.png",
+        length: "7.004", laps: 44, distance: "308.052",
+        record: { time: "1:44.701", driver: "Sergio Pérez (2024)" },
+        downforce: "MEDIA-BAJA", drsZones: "2 ZONAS", corners: "19 Curvas"
+      },
+      "monza": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Italy_Circuit.png",
+        length: "5.793", laps: 53, distance: "306.720",
+        record: { time: "1:21.046", driver: "Rubens Barrichello (2004)" },
+        downforce: "MÍNIMA", drsZones: "2 ZONAS", corners: "11 Curvas"
+      },
+      "red_bull_ring": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Austria_Circuit.png",
+        length: "4.318", laps: 71, distance: "306.452",
+        record: { time: "1:05.619", driver: "Carlos Sainz (2020)" },
+        downforce: "MEDIA", drsZones: "3 ZONAS", corners: "10 Curvas"
+      },
+      "americas": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/USA_Circuit.png",
+        length: "5.513", laps: 56, distance: "308.405",
+        record: { time: "1:36.169", driver: "Charles Leclerc (2019)" },
+        downforce: "ALTA", drsZones: "2 ZONAS", corners: "20 Curvas"
+      },
+      "interlagos": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Brazil_Circuit.png",
+        length: "4.309", laps: 71, distance: "305.879",
+        record: { time: "1:10.540", driver: "Valtteri Bottas (2018)" },
+        downforce: "MEDIA-ALTA", drsZones: "2 ZONAS", corners: "15 Curvas"
+      },
+      "albert_park": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Australia_Circuit.png",
+        length: "5.278", laps: 58, distance: "306.124",
+        record: { time: "1:19.813", driver: "Charles Leclerc (2024)" },
+        downforce: "MEDIA", drsZones: "4 ZONAS", corners: "14 Curvas"
+      },
+      "suzuka": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Japan_Circuit.png",
+        length: "5.807", laps: 53, distance: "307.471",
+        record: { time: "1:30.983", driver: "Lewis Hamilton (2019)" },
+        downforce: "ALTA", drsZones: "1 ZONA", corners: "18 Curvas"
+      },
+      "shanghai": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/China_Circuit.png",
+        length: "5.451", laps: 56, distance: "305.066",
+        record: { time: "1:32.238", driver: "Michael Schumacher (2004)" },
+        downforce: "MEDIA-ALTA", drsZones: "2 ZONAS", corners: "16 Curvas"
+      },
+      "zandvoort": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Netherlands_Circuit.png",
+        length: "4.259", laps: 72, distance: "306.587",
+        record: { time: "1:11.097", driver: "Lewis Hamilton (2021)" },
+        downforce: "ALTA", drsZones: "2 ZONAS", corners: "14 Curvas"
+      },
+      "hungaroring": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Hungary_Circuit.png",
+        length: "4.381", laps: 70, distance: "306.630",
+        record: { time: "1:16.627", driver: "Lewis Hamilton (2020)" },
+        downforce: "MÁXIMA", drsZones: "2 ZONAS", corners: "14 Curvas"
+      },
+      "vegas": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Las_Vegas_Circuit.png",
+        length: "6.201", laps: 50, distance: "309.958",
+        record: { time: "1:35.490", driver: "Oscar Piastri (2023)" },
+        downforce: "BAJA", drsZones: "2 ZONAS", corners: "17 Curvas"
+      },
+      "yas_marina": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Abu_Dhabi_Circuit.png",
+        length: "5.281", laps: 58, distance: "306.183",
+        record: { time: "1:26.103", driver: "Max Verstappen (2021)" },
+        downforce: "MEDIA", drsZones: "2 ZONAS", corners: "16 Curvas"
+      },
+      "bahrain": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Bahrain_Circuit.png",
+        length: "5.412", laps: 57, distance: "308.238",
+        record: { time: "1:31.447", driver: "Pedro de la Rosa (2005)" },
+        downforce: "MEDIA-ALTA", drsZones: "3 ZONAS", corners: "15 Curvas"
+      },
+      "jeddah": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Saudi_Arabia_Circuit.png",
+        length: "6.174", laps: 50, distance: "308.450",
+        record: { time: "1:30.734", driver: "Lewis Hamilton (2021)" },
+        downforce: "MEDIA", drsZones: "3 ZONAS", corners: "27 Curvas"
+      },
+      "miami": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Miami_Circuit.png",
+        length: "5.412", laps: 57, distance: "308.326",
+        record: { time: "1:29.708", driver: "Max Verstappen (2023)" },
+        downforce: "MEDIA-BAJA", drsZones: "3 ZONAS", corners: "19 Curvas"
+      },
+      "villeneuve": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Canada_Circuit.png",
+        length: "4.361", laps: 70, distance: "305.270",
+        record: { time: "1:13.078", driver: "Valtteri Bottas (2019)" },
+        downforce: "BAJA", drsZones: "2 ZONAS", corners: "14 Curvas"
+      },
+      "baku": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Baku_Circuit.png",
+        length: "6.003", laps: 51, distance: "306.049",
+        record: { time: "1:43.009", driver: "Charles Leclerc (2019)" },
+        downforce: "BAJA", drsZones: "2 ZONAS", corners: "20 Curvas"
+      },
+      "marina_bay": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Singapore_Circuit.png",
+        length: "4.940", laps: 62, distance: "306.143",
+        record: { time: "1:34.486", driver: "Daniel Ricciardo (2024)" },
+        downforce: "MÁXIMA", drsZones: "4 ZONAS", corners: "19 Curvas"
+      },
+      "rodriguez": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Mexico_Circuit.png",
+        length: "4.304", laps: 71, distance: "305.354",
+        record: { time: "1:17.774", driver: "Valtteri Bottas (2021)" },
+        downforce: "MÁXIMA (Gran altitud)", drsZones: "3 ZONAS", corners: "17 Curvas"
+      },
+      "losail": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Qatar_Circuit.png",
+        length: "5.419", laps: 57, distance: "308.611",
+        record: { time: "1:24.319", driver: "Max Verstappen (2023)" },
+        downforce: "ALTA", drsZones: "1 ZONA", corners: "16 Curvas"
+      },
+      "imola": {
+        img: "https://media.formula1.com/image/upload/f_auto,c_limit,q_auto,w_1320/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Emilia_Romagna_Circuit.png",
+        length: "4.909", laps: 63, distance: "309.049",
+        record: { time: "1:15.484", driver: "Lewis Hamilton (2020)" },
+        downforce: "MEDIA-ALTA", drsZones: "1 ZONA", corners: "19 Curvas"
+      }
+    };
+
+    const CIRCUIT_ALIASES = {
+      "circuit_de_monaco": "monaco", "monaco": "monaco",
+      "catalunya": "catalunya", "circuit_de_barcelona_catalunya": "catalunya",
+      "silverstone": "silverstone", "spa": "spa", "circuit_de_spa_francorchamps": "spa",
+      "monza": "monza", "autodromo_nazionale_monza": "monza",
+      "red_bull_ring": "red_bull_ring", "americas": "americas", "cota": "americas",
+      "circuit_of_the_americas": "americas", "interlagos": "interlagos",
+      "albert_park": "albert_park", "suzuka": "suzuka", "shanghai": "shanghai",
+      "zandvoort": "zandvoort", "hungaroring": "hungaroring", "vegas": "vegas",
+      "las_vegas": "vegas", "yas_marina": "yas_marina", "bahrain": "bahrain",
+      "jeddah": "jeddah", "miami": "miami", "villeneuve": "villeneuve",
+      "gilles_villeneuve": "villeneuve", "baku": "baku", "marina_bay": "marina_bay",
+      "rodriguez": "rodriguez", "losail": "losail", "imola": "imola"
+    };
+
+    function resolveCircuitData(circuitId) {
+      if (!circuitId) return null;
+      const key = CIRCUIT_ALIASES[circuitId.toLowerCase()] || circuitId.toLowerCase();
+      return OFFICIAL_CIRCUITS_MAPS[key] || null;
+    }
+
+    let currentFilterMode = 'telemetry';
+
+    function toggleCircuitFilterMode() {
+      currentFilterMode = currentFilterMode === 'telemetry' ? 'official' : 'telemetry';
+      const text = document.getElementById('filterModeText');
+      if (text) {
+        text.textContent = currentFilterMode === 'telemetry' ? "MODO TELEMETRÍA" : "MODO F1 OFICIAL";
+      }
+      document.querySelectorAll('.track-official-img').forEach(img => {
+        img.className = `track-official-img ${currentFilterMode === 'telemetry' ? 'filter-telemetry' : 'filter-official'}`;
+      });
+    }
+
+    function renderOfficialCircuitImage(circuitId, circuitName) {
+      const data = resolveCircuitData(circuitId);
+      const filterClass = currentFilterMode === 'telemetry' ? 'filter-telemetry' : 'filter-official';
+
+      if (data && data.img) {
+        return `
+          <img 
+            src="${data.img}" 
+            alt="Trazado Oficial de ${circuitName || 'F1'}"
+            class="track-official-img ${filterClass}"
+            loading="lazy"
+            onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'flex flex-col items-center justify-center text-center p-3 text-secondary\\'><span class=\\'material-symbols-outlined text-4xl opacity-80\\'>radar</span><span class=\\'text-[11px] font-label-caps uppercase text-on-surface font-bold\\'>HOMOLOGACIÓN FIA</span><span class=\\'text-[9px] font-label-telemetry text-on-surface-variant\\'>TRAZADO OFICIAL ACTIVO</span></div>';"
+          />
+        `;
+      }
+
+      return `
+        <div class="flex flex-col items-center justify-center text-center p-3 text-secondary space-y-1">
+          <span class="material-symbols-outlined text-4xl opacity-80">radar</span>
+          <span class="text-[11px] font-label-caps uppercase text-on-surface font-bold">HOMOLOGACIÓN FIA</span>
+          <span class="text-[9px] font-label-telemetry text-on-surface-variant">TRAZADO GPS ACTIVO</span>
+        </div>
+      `;
+    }
+
+    const COUNTRY_FLAGS = {
+      "Spain": "🇪🇸", "Monaco": "🇲🇨", "UK": "🇬🇧", "Great Britain": "🇬🇧",
+      "Italy": "🇮🇹", "Belgium": "🇧🇪", "Austria": "🇦🇹", "USA": "🇺🇸",
+      "United States": "🇺🇸", "Brazil": "🇧🇷", "Mexico": "🇲🇽", "Canada": "🇨🇦",
+      "Australia": "🇦🇺", "Japan": "🇯🇵", "Netherlands": "🇳🇱", "Singapore": "🇸🇬",
+      "Bahrain": "🇧🇭", "Saudi Arabia": "🇸🇦", "Azerbaijan": "🇦🇿", "Qatar": "🇶🇦",
+      "UAE": "🇦🇪", "Hungary": "🇭🇺", "China": "🇨🇳"
+    };
+
+    const TEAM_COLORS = {
+      "Red Bull": "#3671C6", "McLaren": "#FF8000", "Ferrari": "#E80020",
+      "Mercedes": "#27F4D2", "Aston Martin": "#229971", "Alpine": "#0093CC",
+      "Williams": "#00A0DD", "RB": "#6692FF", "Haas": "#B6BABD",
+      "Kick Sauber": "#52E252", "Sauber": "#52E252", "Audi": "#00E070"
+    };
+
+    function getTeamColor(teamName) {
+      if (!teamName) return "#47efda";
+      for (const [key, color] of Object.entries(TEAM_COLORS)) {
+        if (teamName.toLowerCase().includes(key.toLowerCase())) return color;
+      }
+      return "#47efda";
+    }
+
+    /**
+     * ESTADO GLOBAL DE LA APLICACIÓN
+     * officialResultsCache guarda los resultados oficiales leídos de cada round para evitar peticiones repetidas y exportarlos en JSON.
+     */
+    let appState = {
+      season: "2025",
+      races: [],
+      driversStandings: [],
+      constructorsStandings: [],
+      nextRaceIndex: 0,
+      activeDetailRound: 1,
+      officialResultsCache: {} // Clave: round, Valor: { fetchedAt: ..., results: [...] }
+    };
+
+    let activeDriverSort = "points";
+    let showAllDrivers = false;
+
+    /**
+     * NAVEGACIÓN ENTRE VISTAS (Dashboard, Calendario, Detalle)
+     */
+    function switchView(viewId) {
+      document.querySelectorAll('.view-pane').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById(`view-${viewId}`);
+      if (target) target.classList.add('active');
+
+      ['dashboard', 'calendar'].forEach(tab => {
+        const dBtn = document.getElementById(`nav-${tab}`);
+        const mBtn = document.getElementById(`mob-nav-${tab}`);
+        const isActive = tab === viewId;
+
+        if (dBtn) {
+          dBtn.className = isActive
+            ? "text-secondary border-b-2 border-secondary font-bold h-full flex items-center px-4 uppercase tracking-wider transition-colors"
+            : "text-on-surface-variant hover:text-secondary font-medium h-full flex items-center px-4 uppercase tracking-wider transition-colors";
+        }
+        if (mBtn) {
+          mBtn.className = isActive
+            ? "flex flex-col items-center justify-center text-secondary w-20 py-1"
+            : "flex flex-col items-center justify-center text-on-surface-variant w-20 py-1";
+        }
+      });
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function toggleMobileJsonModal(show) {
+      const modal = document.getElementById('mobileJsonModal');
+      if (modal) modal.classList.toggle('hidden', !show);
+    }
+
+    function startClock() {
+      function tick() {
+        const now = new Date();
+        const uH = String(now.getUTCHours()).padStart(2, '0');
+        const uM = String(now.getUTCMinutes()).padStart(2, '0');
+        const uS = String(now.getUTCSeconds()).padStart(2, '0');
+        const utcEl = document.getElementById('utcClock');
+        if (utcEl) utcEl.textContent = `${uH}:${uM}:${uS} UTC`;
+
+        const locEl = document.getElementById('localClock');
+        if (locEl) {
+          locEl.textContent = `${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} LOCAL`;
+        }
+      }
+      setInterval(tick, 1000);
+      tick();
+    }
+
+    function formatUtcSessionToLocal(dateStr, timeStr) {
+      if (!dateStr) return { day: "Fecha TBC", time: "Hora TBC", iso: null, rawDate: null };
+      const combined = timeStr ? `${dateStr}T${timeStr}` : `${dateStr}T13:00:00Z`;
+      const dateObj = new Date(combined);
+
+      if (isNaN(dateObj.getTime())) {
+        return { day: dateStr, time: timeStr || "Hora TBC", iso: null, rawDate: null };
+      }
+
+      return {
+        day: dateObj.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }),
+        time: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        iso: dateObj.toISOString(),
+        rawDate: dateObj
+      };
+    }
+
+    /**
+     * CONEXIÓN A LA API DE F1
+     */
+    async function fetchF1Data(isUserClick = false) {
+      const apiText = document.getElementById('apiStatusText');
+      const syncIcon = document.getElementById('syncIcon');
+      if (syncIcon) syncIcon.classList.add('animate-spin');
+      if (apiText) apiText.textContent = "CONECTANDO...";
+
+      let apiSuccess = false;
+
+      try {
+        const [driversRes, constructorsRes, scheduleRes] = await Promise.allSettled([
+          fetch('https://api.jolpi.ca/ergast/f1/current/driverStandings.json'),
+          fetch('https://api.jolpi.ca/ergast/f1/current/constructorStandings.json'),
+          fetch('https://api.jolpi.ca/ergast/f1/current.json')
+        ]);
+
+        if (scheduleRes.status === 'fulfilled' && scheduleRes.value.ok) {
+          const sJson = await scheduleRes.value.json();
+          const rList = sJson?.MRData?.RaceTable?.Races;
+          if (Array.isArray(rList) && rList.length > 0) {
+            appState.races = rList;
+            appState.season = sJson.MRData.RaceTable.season || "2025";
+            apiSuccess = true;
+          }
+        }
+
+        if (driversRes.status === 'fulfilled' && driversRes.value.ok) {
+          const dJson = await driversRes.value.json();
+          const dList = dJson?.MRData?.StandingsTable?.StandingsLists?.[0]?.DriverStandings;
+          if (Array.isArray(dList) && dList.length > 0) {
+            appState.driversStandings = dList.map(item => ({
+              pos: parseInt(item.position),
+              number: item.Driver.permanentNumber || item.Driver.code || "-",
+              code: item.Driver.code || item.Driver.familyName.slice(0, 3).toUpperCase(),
+              name: `${item.Driver.givenName} ${item.Driver.familyName}`,
+              nationality: item.Driver.nationality,
+              team: item.Constructors?.[0]?.name || "F1 Team",
+              wins: parseInt(item.wins || "0"),
+              points: parseFloat(item.points || "0")
+            }));
+            apiSuccess = true;
+          }
+        }
+
+        if (constructorsRes.status === 'fulfilled' && constructorsRes.value.ok) {
+          const cJson = await constructorsRes.value.json();
+          const cList = cJson?.MRData?.StandingsTable?.StandingsLists?.[0]?.ConstructorStandings;
+          if (Array.isArray(cList) && cList.length > 0) {
+            appState.constructorsStandings = cList.map(item => ({
+              pos: parseInt(item.position),
+              name: item.Constructor.name,
+              wins: parseInt(item.wins || "0"),
+              points: parseFloat(item.points || "0"),
+              nationality: item.Constructor.nationality
+            }));
+            apiSuccess = true;
+          }
+        }
+
+      } catch (e) {
+        console.warn("API de F1 no accesible, cargando dataset oficial homologado.", e);
+      } finally {
+        if (syncIcon) syncIcon.classList.remove('animate-spin');
+
+        if (!appState.races || appState.races.length === 0) {
+          loadOfflineFallback();
+        }
+
+        findNextRaceIndex();
+
+        if (apiText) {
+          apiText.textContent = apiSuccess ? "LIVE FEED" : "CACHE OFFLINE";
+          apiText.className = apiSuccess 
+            ? "font-label-caps text-[10px] sm:text-xs text-secondary font-bold tracking-wider"
+            : "font-label-caps text-[10px] sm:text-xs text-tertiary font-bold tracking-wider";
+        }
+
+        renderAllViews();
+      }
+    }
+
+    function findNextRaceIndex() {
+      const now = new Date();
+      let index = 0;
+      for (let i = 0; i < appState.races.length; i++) {
+        const r = appState.races[i];
+        const rDate = new Date(`${r.date}T${r.time || "13:00:00Z"}`);
+        if (rDate >= now) {
+          index = i;
+          break;
+        }
+      }
+      appState.nextRaceIndex = index;
+    }
+
+    function loadOfflineFallback() {
+      appState.season = "2025";
+      appState.races = [
+        {
+          round: "8",
+          raceName: "Gran Premio de Mónaco",
+          date: "2025-05-25",
+          time: "13:00:00Z",
+          Circuit: { circuitId: "monaco", circuitName: "Circuit de Monaco", Location: { locality: "Monte Carlo", country: "Monaco", lat: "43.7347", long: "7.4205" } },
+          FirstPractice: { date: "2025-05-23", time: "11:30:00Z" },
+          SecondPractice: { date: "2025-05-23", time: "15:00:00Z" },
+          ThirdPractice: { date: "2025-05-24", time: "10:30:00Z" },
+          Qualifying: { date: "2025-05-24", time: "14:00:00Z" }
+        },
+        {
+          round: "9",
+          raceName: "Gran Premio de España",
+          date: "2025-06-01",
+          time: "13:00:00Z",
+          Circuit: { circuitId: "catalunya", circuitName: "Circuit de Barcelona-Catalunya", Location: { locality: "Montmeló", country: "Spain", lat: "41.5700", long: "2.2611" } },
+          FirstPractice: { date: "2025-05-30", time: "11:30:00Z" },
+          SecondPractice: { date: "2025-05-30", time: "15:00:00Z" },
+          ThirdPractice: { date: "2025-05-31", time: "10:30:00Z" },
+          Qualifying: { date: "2025-05-31", time: "14:00:00Z" }
+        },
+        {
+          round: "10",
+          raceName: "Gran Premio de Canadá",
+          date: "2025-06-15",
+          time: "18:00:00Z",
+          Circuit: { circuitId: "villeneuve", circuitName: "Circuit Gilles-Villeneuve", Location: { locality: "Montreal", country: "Canada", lat: "45.5000", long: "-73.5228" } }
+        },
+        {
+          round: "11",
+          raceName: "Gran Premio de Austria",
+          date: "2025-06-29",
+          time: "13:00:00Z",
+          Circuit: { circuitId: "red_bull_ring", circuitName: "Red Bull Ring", Location: { locality: "Spielberg", country: "Austria", lat: "47.2197", long: "14.7647" } }
+        },
+        {
+          round: "12",
+          raceName: "Gran Premio de Gran Bretaña",
+          date: "2025-07-06",
+          time: "14:00:00Z",
+          Circuit: { circuitId: "silverstone", circuitName: "Silverstone Circuit", Location: { locality: "Silverstone", country: "UK", lat: "52.0786", long: "-1.0169" } }
+        },
+        {
+          round: "13",
+          raceName: "Gran Premio de Bélgica",
+          date: "2025-07-27",
+          time: "13:00:00Z",
+          Circuit: { circuitId: "spa", circuitName: "Circuit de Spa-Francorchamps", Location: { locality: "Stavelot", country: "Belgium", lat: "50.4372", long: "5.9714" } }
+        },
+        {
+          round: "16",
+          raceName: "Gran Premio de Italia",
+          date: "2025-09-07",
+          time: "13:00:00Z",
+          Circuit: { circuitId: "monza", circuitName: "Autodromo Nazionale Monza", Location: { locality: "Monza", country: "Italy", lat: "45.6156", long: "9.2811" } }
+        },
+        {
+          round: "19",
+          raceName: "Gran Premio de los Estados Unidos",
+          date: "2025-10-19",
+          time: "19:00:00Z",
+          Circuit: { circuitId: "americas", circuitName: "Circuit of the Americas", Location: { locality: "Austin", country: "USA", lat: "30.1328", long: "-97.6411" } },
+          FirstPractice: { date: "2025-10-17", time: "17:30:00Z" },
+          SprintQualifying: { date: "2025-10-17", time: "21:30:00Z" },
+          Sprint: { date: "2025-10-18", time: "18:00:00Z" },
+          Qualifying: { date: "2025-10-18", time: "22:00:00Z" }
+        },
+        {
+          round: "21",
+          raceName: "Gran Premio de São Paulo",
+          date: "2025-11-09",
+          time: "17:00:00Z",
+          Circuit: { circuitId: "interlagos", circuitName: "Autódromo José Carlos Pace", Location: { locality: "São Paulo", country: "Brazil", lat: "-23.7036", long: "-46.6997" } }
+        }
+      ];
+
+      appState.driversStandings = [
+        { pos: 1, number: "1", code: "VER", name: "Max Verstappen", team: "Red Bull", wins: 7, points: 280 },
+        { pos: 2, number: "4", code: "NOR", name: "Lando Norris", team: "McLaren", wins: 4, points: 265 },
+        { pos: 3, number: "16", code: "LEC", name: "Charles Leclerc", team: "Ferrari", wins: 2, points: 220 },
+        { pos: 4, number: "81", code: "PIA", name: "Oscar Piastri", team: "McLaren", wins: 2, points: 210 },
+        { pos: 5, number: "55", code: "SAI", name: "Carlos Sainz", team: "Ferrari", wins: 1, points: 175 },
+        { pos: 6, number: "44", code: "HAM", name: "Lewis Hamilton", team: "Mercedes", wins: 2, points: 155 },
+        { pos: 7, number: "63", code: "RUS", name: "George Russell", team: "Mercedes", wins: 1, points: 135 },
+        { pos: 8, number: "14", code: "ALO", name: "Fernando Alonso", team: "Aston Martin", wins: 0, points: 54 }
+      ];
+
+      appState.constructorsStandings = [
+        { pos: 1, name: "McLaren", wins: 6, points: 475 },
+        { pos: 2, name: "Ferrari", wins: 3, points: 395 },
+        { pos: 3, name: "Red Bull", wins: 7, points: 350 },
+        { pos: 4, name: "Mercedes", wins: 3, points: 290 },
+        { pos: 5, name: "Aston Martin", wins: 0, points: 86 }
+      ];
+    }
+
+    /**
+     * RENDERIZAR HERO DEL DASHBOARD
+     */
+    let countdownInterval = null;
+
+    function renderHero() {
+      if (!appState.races || appState.races.length === 0) return;
+      const race = appState.races[appState.nextRaceIndex] || appState.races[0];
+      const circuit = race.Circuit;
+      const circuitId = circuit?.circuitId || "";
+      const country = circuit?.Location?.country || "";
+      const resolved = resolveCircuitData(circuitId) || {
+        length: "5.120", laps: 57, distance: "305.000",
+        record: { time: "1:24.125", driver: "Oficial FIA" },
+        downforce: "MEDIA", drsZones: "2 ZONAS", corners: "16 Curvas"
+      };
+
+      document.getElementById('heroRoundBadge').textContent = `ROUND ${String(race.round).padStart(2, '0')} // OFICIAL FIA`;
+      document.getElementById('heroSeasonBadge').innerHTML = `<span class="w-1.5 h-1.5 bg-secondary rounded-full animate-pulse"></span> FIA F1 CALENDAR ${appState.season}`;
+      document.getElementById('heroRaceTitle').textContent = race.raceName.toUpperCase();
+      document.getElementById('heroRaceFlag').textContent = COUNTRY_FLAGS[country] || "🏁";
+      document.getElementById('heroCircuitLocation').innerHTML = `
+        <span class="material-symbols-outlined text-[16px] text-primary flex-shrink-0">location_on</span>
+        <span class="truncate">${circuit.circuitName} · ${circuit.Location.locality}, ${country}</span>
+      `;
+
+      const tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || "Local";
+      document.getElementById('heroUserTimezone').textContent = `HORA LOCAL: ${tzName.toUpperCase()}`;
+
+      const imgContainer = document.getElementById('heroCircuitImgContainer');
+      if (imgContainer) {
+        imgContainer.innerHTML = renderOfficialCircuitImage(circuitId, circuit.circuitName);
+      }
+
+      document.getElementById('heroTrackOverlayName').textContent = circuit.circuitName.toUpperCase();
+      document.getElementById('heroCircuitAero').textContent = `CARGA: ${resolved.downforce}`;
+      document.getElementById('heroSpecLength').textContent = `${resolved.length} km`;
+      document.getElementById('heroSpecLaps').textContent = `${resolved.laps} V (${resolved.distance} km)`;
+      document.getElementById('heroSpecRecordTime').textContent = resolved.record.time;
+      document.getElementById('heroSpecRecordHolder').textContent = resolved.record.driver;
+      document.getElementById('heroSpecDrs').textContent = resolved.drsZones;
+      document.getElementById('heroSpecCorners').textContent = resolved.corners || "Pista Oficial";
+      document.getElementById('heroCircuitCoords').textContent = `${parseFloat(circuit.Location.lat || 0).toFixed(4)}, ${parseFloat(circuit.Location.long || 0).toFixed(4)}`;
+
+      renderHeroSessions(race);
+      initPrecisionCountdown(race);
+    }
+
+    function renderHeroSessions(race) {
+      const container = document.getElementById('heroSessionsList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const sessions = buildSessionArray(race);
+      const hasSprint = !!race.Sprint || !!race.SprintQualifying;
+      document.getElementById('heroWeekendFormat').textContent = hasSprint ? "FORMATO SPRINT" : "FORMATO ESTÁNDAR";
+
+      sessions.forEach(s => {
+        const item = document.createElement('div');
+        if (s.isRace) {
+          item.className = "flex items-center justify-between p-2 bg-surface-container-high border-l-2 border-primary-container";
+          item.innerHTML = `
+            <div>
+              <div class="font-label-caps text-primary font-bold flex items-center gap-1 text-[11px] sm:text-xs">
+                <span class="material-symbols-outlined text-[13px]">trophy</span> ${s.name}
+              </div>
+              <div class="text-[10px] text-on-surface-variant">${s.local.day}</div>
+            </div>
+            <div class="text-right font-label-telemetry">
+              <span class="text-on-primary-container font-bold text-xs sm:text-sm">${s.local.time}</span>
+              <span class="block text-[9px] text-primary">OFICIAL</span>
+            </div>
+          `;
+        } else if (s.isKey) {
+          item.className = "flex items-center justify-between p-2 bg-surface-container border-l-2 border-tertiary";
+          item.innerHTML = `
+            <div>
+              <div class="font-label-caps text-tertiary font-bold flex items-center gap-1 text-[11px] sm:text-xs">
+                <span class="material-symbols-outlined text-[13px]">flag</span> ${s.name}
+              </div>
+              <div class="text-[10px] text-on-surface-variant">${s.local.day}</div>
+            </div>
+            <div class="text-right font-label-telemetry">
+              <span class="text-tertiary font-bold text-xs">${s.local.time}</span>
+            </div>
+          `;
+        } else {
+          item.className = "flex items-center justify-between p-2 bg-surface-container-low border-l-2 border-surface-container-highest";
+          item.innerHTML = `
+            <div>
+              <div class="font-label-caps text-on-surface text-[11px] sm:text-xs">${s.name}</div>
+              <div class="text-[10px] text-on-surface-variant">${s.local.day}</div>
+            </div>
+            <div class="text-right font-label-telemetry">
+              <span class="text-secondary font-semibold text-xs">${s.local.time}</span>
+            </div>
+          `;
+        }
+        container.appendChild(item);
+      });
+    }
+
+    function buildSessionArray(race) {
+      const arr = [];
+      if (race.FirstPractice) {
+        arr.push({ name: "PRÁCTICAS 1 (FP1)", local: formatUtcSessionToLocal(race.FirstPractice.date, race.FirstPractice.time) });
+      }
+      if (race.SprintQualifying) {
+        arr.push({ name: "CLASIFICACIÓN SPRINT", isKey: true, local: formatUtcSessionToLocal(race.SprintQualifying.date, race.SprintQualifying.time) });
+      } else if (race.SecondPractice) {
+        arr.push({ name: "PRÁCTICAS 2 (FP2)", local: formatUtcSessionToLocal(race.SecondPractice.date, race.SecondPractice.time) });
+      }
+
+      if (race.Sprint) {
+        arr.push({ name: "CARRERA SPRINT", isKey: true, local: formatUtcSessionToLocal(race.Sprint.date, race.Sprint.time) });
+      } else if (race.ThirdPractice) {
+        arr.push({ name: "PRÁCTICAS 3 (FP3)", local: formatUtcSessionToLocal(race.ThirdPractice.date, race.ThirdPractice.time) });
+      }
+
+      if (race.Qualifying) {
+        arr.push({ name: "CLASIFICACIÓN (Q)", isKey: true, local: formatUtcSessionToLocal(race.Qualifying.date, race.Qualifying.time) });
+      }
+
+      arr.push({ name: "GRAN PREMIO (CARRERA)", isRace: true, local: formatUtcSessionToLocal(race.date, race.time) });
+      return arr;
+    }
+
+    function initPrecisionCountdown(race) {
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      const sessions = buildSessionArray(race);
+      const now = Date.now();
+      let target = sessions[sessions.length - 1];
+
+      for (const s of sessions) {
+        if (s.local.rawDate && s.local.rawDate.getTime() > now) {
+          target = s;
+          break;
+        }
+      }
+
+      const targetMs = target.local.rawDate ? target.local.rawDate.getTime() : new Date(`${race.date}T${race.time || "13:00:00Z"}`).getTime();
+      document.getElementById('heroCountdownLabel').textContent = `CUENTA ATRÁS: ${target.name}`;
+      document.getElementById('heroCountdownTargetDate').textContent = `${target.local.day} · ${target.local.time}`;
+
+      function update() {
+        const delta = targetMs - Date.now();
+        if (delta <= 0) {
+          document.getElementById('cd-days').textContent = "00";
+          document.getElementById('cd-hours').textContent = "00";
+          document.getElementById('cd-mins').textContent = "00";
+          document.getElementById('cd-secs').textContent = "00";
+          return;
+        }
+        const d = Math.floor(delta / (1000 * 60 * 60 * 24));
+        const h = Math.floor((delta % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((delta % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((delta % 1000) / 1000);
+
+        document.getElementById('cd-days').textContent = String(d).padStart(2, '0');
+        document.getElementById('cd-hours').textContent = String(h).padStart(2, '0');
+        document.getElementById('cd-mins').textContent = String(m).padStart(2, '0');
+        document.getElementById('cd-secs').textContent = String(Math.floor((delta % 60000) / 1000)).padStart(2, '0');
+      }
+
+      update();
+      countdownInterval = setInterval(update, 1000);
+    }
+
+    function goToCurrentHeroDetail() {
+      const race = appState.races[appState.nextRaceIndex] || appState.races[0];
+      if (race) openRaceDetail(race.round);
+    }
+
+    /**
+     * MUNDIAL DE PILOTOS Y CONSTRUCTORES
+     */
+    function renderDriversTable() {
+      const tbody = document.getElementById('driversTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      const sorted = [...appState.driversStandings].sort((a, b) => {
+        return activeDriverSort === 'points' ? b.points - a.points || b.wins - a.wins : b.wins - a.wins || b.points - a.points;
+      });
+
+      const leaderPts = sorted[0]?.points || 1;
+      const list = showAllDrivers ? sorted : sorted.slice(0, 10);
+
+      list.forEach((d, i) => {
+        const isLeader = i === 0;
+        const diff = isLeader ? "-" : `-${(leaderPts - d.points).toFixed(0)}`;
+        const color = getTeamColor(d.team);
+
+        const tr = document.createElement('tr');
+        tr.className = isLeader
+          ? "bg-surface-container/60 hover:bg-surface-container transition-colors"
+          : "hover:bg-surface-container-low transition-colors";
+
+        tr.innerHTML = `
+          <td class="py-2.5 px-2 text-center">
+            ${isLeader 
+              ? `<div class="inline-flex items-center justify-center w-5 h-5 bg-tertiary text-background font-bold text-xs">1</div>`
+              : `<span class="font-headline font-semibold text-on-surface text-xs">${i + 1}</span>`}
+          </td>
+          <td class="py-2.5 px-1 text-center text-on-surface-variant font-bold text-xs hidden xs:table-cell">#${d.number}</td>
+          <td class="py-2.5 px-3">
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-3 inline-block flex-shrink-0" style="background-color: ${color}"></span>
+              <div>
+                <span class="font-headline font-bold text-on-surface text-xs sm:text-sm block truncate">${d.name}</span>
+                <span class="text-[10px] text-on-surface-variant font-mono">${d.team}</span>
+              </div>
+            </div>
+          </td>
+          <td class="py-2.5 px-2 text-center text-on-surface font-bold text-xs hidden sm:table-cell">${d.wins}</td>
+          <td class="py-2.5 px-2 text-right text-xs ${isLeader ? 'text-on-surface-variant' : 'text-primary'} hidden sm:table-cell">${diff}</td>
+          <td class="py-2.5 px-4 text-right">
+            <span class="font-headline font-bold text-xs sm:text-sm ${isLeader ? 'text-tertiary' : 'text-on-surface'}">${d.points}</span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('driversCountSummary').textContent = `MOSTRANDO ${list.length} DE ${sorted.length} PILOTOS`;
+    }
+
+    function setDriverSort(sortKey) {
+      activeDriverSort = sortKey;
+      document.getElementById('btnSortPts').className = sortKey === 'points'
+        ? "bg-surface-container text-secondary px-2.5 py-1 border border-secondary font-bold text-xs"
+        : "bg-surface-container text-on-surface-variant px-2.5 py-1 border border-surface-variant hover:text-on-surface text-xs";
+      document.getElementById('btnSortWins').className = sortKey === 'wins'
+        ? "bg-surface-container text-secondary px-2.5 py-1 border border-secondary font-bold text-xs"
+        : "bg-surface-container text-on-surface-variant px-2.5 py-1 border border-surface-variant hover:text-on-surface text-xs";
+      renderDriversTable();
+    }
+
+    function toggleAllDriversView() {
+      showAllDrivers = !showAllDrivers;
+      document.getElementById('btnToggleAllDrivers').innerHTML = showAllDrivers
+        ? `MOSTRAR TOP 10 <span class="material-symbols-outlined text-[15px]">expand_less</span>`
+        : `MOSTRAR COMPLETA <span class="material-symbols-outlined text-[15px]">expand_more</span>`;
+      renderDriversTable();
+    }
+
+    function renderConstructorsCards() {
+      const container = document.getElementById('constructorsListContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const maxPts = appState.constructorsStandings[0]?.points || 1;
+
+      appState.constructorsStandings.forEach((c, idx) => {
+        const color = getTeamColor(c.name);
+        const percent = Math.min(100, Math.max(10, (c.points / maxPts) * 100));
+        const diff = idx === 0 ? "LÍDER" : `-${(maxPts - c.points).toFixed(0)} PTS`;
+
+        const card = document.createElement('div');
+        card.className = "bg-surface-container-low border border-surface-container-high p-2.5 sm:p-3 relative overflow-hidden group hover:border-secondary transition-colors";
+        card.innerHTML = `
+          <div class="absolute left-0 top-0 bottom-0 w-1.5" style="background-color: ${color}"></div>
+          <div class="pl-2">
+            <div class="flex items-center justify-between mb-1">
+              <div class="flex items-center gap-2">
+                <span class="font-headline text-xs font-bold ${idx === 0 ? 'text-tertiary' : 'text-on-surface'}">P${idx + 1}</span>
+                <span class="font-headline text-xs sm:text-sm font-bold text-on-surface">${c.name}</span>
+              </div>
+              <span class="font-headline font-bold ${idx === 0 ? 'text-secondary' : 'text-on-surface'} text-xs sm:text-sm">${c.points} PTS</span>
+            </div>
+            <div class="w-full bg-surface-container h-1.5 rounded-none overflow-hidden my-1 border border-surface-container-highest">
+              <div class="h-full" style="width: ${percent}%; background-color: ${color}"></div>
+            </div>
+            <div class="flex items-center justify-between font-label-telemetry text-on-surface-variant text-[10px]">
+              <span>${c.wins} VICTORIAS</span>
+              <span class="${idx === 0 ? 'text-secondary' : 'text-primary'} font-mono">${diff}</span>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    /**
+     * CALENDARIO OFICIAL Y NAVEGACIÓN A DETALLE
+     */
+    function renderCalendar() {
+      const grid = document.getElementById('calendarGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      const now = new Date();
+
+      appState.races.forEach(race => {
+        const rDate = new Date(`${race.date}T${race.time || "13:00:00Z"}`);
+        const isPast = rDate < now;
+        const circuit = race.Circuit;
+        const country = circuit?.Location?.country || "";
+        const flag = COUNTRY_FLAGS[country] || "🏁";
+        const resolved = resolveCircuitData(circuit?.circuitId);
+
+        const card = document.createElement('div');
+        card.className = "bg-surface-container-lowest border border-surface-container-highest hover:border-secondary p-4 flex flex-col justify-between transition-colors";
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-label-caps px-2 py-0.5 ${isPast ? 'bg-surface-container text-on-surface-variant' : 'bg-primary-container text-on-primary-container font-bold'} uppercase">
+                ROUND ${String(race.round).padStart(2, '0')}
+              </span>
+              <span class="text-xs font-label-telemetry ${isPast ? 'text-on-surface-variant' : 'text-secondary font-bold'}">
+                ${isPast ? 'FINALIZADO' : 'PRÓXIMO'}
+              </span>
+            </div>
+
+            <div class="flex items-baseline justify-between gap-1 mb-1">
+              <h4 class="text-sm sm:text-base font-headline font-bold text-on-surface uppercase truncate">${race.raceName}</h4>
+              <span class="text-xl">${flag}</span>
+            </div>
+
+            <p class="text-xs text-on-surface-variant mb-2.5 truncate">${circuit.circuitName}</p>
+
+            <div class="bg-surface-container-low p-2.5 border border-surface-container-high text-xs font-label-telemetry space-y-1 mb-3">
+              <div class="flex justify-between">
+                <span class="text-on-surface-variant">FECHA GP:</span>
+                <span class="text-on-surface font-semibold">${race.date}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-on-surface-variant">LONGITUD:</span>
+                <span class="text-secondary font-mono">${resolved ? resolved.length + ' km' : 'Homologado FIA'}</span>
+              </div>
+            </div>
+          </div>
+
+          <button onclick="openRaceDetail('${race.round}')" class="w-full py-2.5 bg-surface-container hover:bg-secondary hover:text-surface-container-lowest border border-surface-container-highest text-secondary text-xs font-label-caps uppercase font-bold flex items-center justify-center gap-1.5 transition-colors">
+            <span class="material-symbols-outlined text-[16px]">visibility</span> VER FICHA &amp; RESULTADOS
+          </button>
+        `;
+        grid.appendChild(card);
+      });
+
+      document.getElementById('calendarSeasonLabel').textContent = appState.season;
+    }
+
+    /**
+     * DOSSIER TÉCNICO DE DETALLE DE GRAN PREMIO
+     */
+    function openRaceDetail(roundNumber) {
+      const race = appState.races.find(r => String(r.round) === String(roundNumber));
+      if (!race) return;
+
+      appState.activeDetailRound = roundNumber;
+      const circuit = race.Circuit;
+      const circuitId = circuit?.circuitId || "";
+      const country = circuit?.Location?.country || "";
+      const resolved = resolveCircuitData(circuitId) || {
+        length: "5.200", laps: 56, distance: "305.000",
+        record: { time: "1:25.000", driver: "Oficial FIA" },
+        downforce: "MEDIA", drsZones: "2 ZONAS", corners: "16 Curvas"
+      };
+
+      const now = new Date();
+      const rDate = new Date(`${race.date}T${race.time || "13:00:00Z"}`);
+      const isPast = rDate < now;
+
+      document.getElementById('detailBreadcrumb').textContent = `F1 ${appState.season} // ROUND ${race.round} // ${race.raceName.toUpperCase()}`;
+      document.getElementById('detailRoundBadge').textContent = `ROUND ${String(race.round).padStart(2, '0')}`;
+      document.getElementById('detailRaceTitle').textContent = race.raceName.toUpperCase();
+      document.getElementById('detailRaceFlag').textContent = COUNTRY_FLAGS[country] || "🏁";
+      document.getElementById('detailCircuitLocation').innerHTML = `
+        <span class="material-symbols-outlined text-[16px] text-primary">location_on</span>
+        ${circuit.circuitName} · ${circuit.Location.locality}, ${country}
+      `;
+
+      const statusBadge = document.getElementById('detailRaceCompletionStatus');
+      if (statusBadge) {
+        statusBadge.innerHTML = isPast
+          ? `<span class="w-2 h-2 rounded-full bg-secondary"></span> GRAN PREMIO FINALIZADO`
+          : `<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span> CARRERA PRÓXIMA / EN ESPERA`;
+      }
+
+      // Inyección de la imagen oficial del circuito
+      const imgHost = document.getElementById('detailCircuitImgContainer');
+      if (imgHost) {
+        imgHost.innerHTML = renderOfficialCircuitImage(circuitId, circuit.circuitName);
+      }
+
+      document.getElementById('detailTrackNameOverlay').textContent = circuit.circuitName.toUpperCase();
+      document.getElementById('detailCircuitDrsBadge').textContent = resolved.drsZones;
+      document.getElementById('detailSpecLength').textContent = `${resolved.length} km`;
+      document.getElementById('detailSpecLaps').textContent = `${resolved.laps} VUELTAS`;
+      document.getElementById('detailSpecDist').textContent = `${resolved.distance} km`;
+      document.getElementById('detailSpecDownforce').textContent = resolved.downforce;
+      document.getElementById('detailSpecRecordTime').textContent = resolved.record.time;
+      document.getElementById('detailSpecRecordHolder').textContent = resolved.record.driver;
+
+      // Lista de sesiones locales
+      const sessionsContainer = document.getElementById('detailSessionsList');
+      sessionsContainer.innerHTML = '';
+      const sessions = buildSessionArray(race);
+
+      sessions.forEach(s => {
+        const item = document.createElement('div');
+        if (s.isRace) {
+          item.className = "flex items-center justify-between p-2.5 bg-surface-container-high border-l-2 border-primary-container";
+          item.innerHTML = `
+            <div>
+              <div class="font-label-caps text-primary font-bold flex items-center gap-1.5 text-xs">
+                <span class="material-symbols-outlined text-[14px]">trophy</span> ${s.name}
+              </div>
+              <div class="text-[11px] text-on-surface-variant">${s.local.day}</div>
+            </div>
+            <div class="text-right font-label-telemetry">
+              <span class="text-on-primary-container font-bold text-sm">${s.local.time}</span>
+              <span class="block text-[9px] text-primary">LOCAL</span>
+            </div>
+          `;
+        } else if (s.isKey) {
+          item.className = "flex items-center justify-between p-2.5 bg-surface-container border-l-2 border-tertiary";
+          item.innerHTML = `
+            <div>
+              <div class="font-label-caps text-tertiary font-bold flex items-center gap-1.5 text-xs">
+                <span class="material-symbols-outlined text-[14px]">flag</span> ${s.name}
+              </div>
+              <div class="text-[11px] text-on-surface-variant">${s.local.day}</div>
+            </div>
+            <div class="text-right font-label-telemetry">
+              <span class="text-tertiary font-bold text-xs">${s.local.time}</span>
+            </div>
+          `;
+        } else {
+          item.className = "flex items-center justify-between p-2.5 bg-surface-container-low border-l-2 border-surface-container-highest";
+          item.innerHTML = `
+            <div>
+              <div class="font-label-caps text-on-surface text-xs font-semibold">${s.name}</div>
+              <div class="text-[11px] text-on-surface-variant">${s.local.day}</div>
+            </div>
+            <div class="text-right font-label-telemetry">
+              <span class="text-secondary font-semibold text-xs">${s.local.time}</span>
+            </div>
+          `;
+        }
+        sessionsContainer.appendChild(item);
+      });
+
+      // LECTURA AUTOMÁTICA DE RESULTADOS: Si la carrera ya terminó, se leen automáticamente
+      fetchOfficialResultsForDetail(false);
+
+      switchView('race-detail');
+    }
+
+    /**
+     * LECTURA DE RESULTADOS OFICIALES DESDE LA API DE F1
+     */
+    async function fetchOfficialResultsForDetail(forceRefresh = false) {
+      const round = appState.activeDetailRound;
+      const race = appState.races.find(r => String(r.round) === String(round));
+      if (!race) return;
+
+      const container = document.getElementById('detailResultsContainer');
+      const syncStatus = document.getElementById('officialResultsSyncStatus');
+      const fetchIcon = document.getElementById('fetchResultsIcon');
+
+      const now = new Date();
+      const rDate = new Date(`${race.date}T${race.time || "13:00:00Z"}`);
+      const isPast = rDate < now;
+
+      // Si la carrera aún no se ha celebrado
+      if (!isPast) {
+        if (syncStatus) syncStatus.textContent = "CARRERA NO DISPUTADA";
+        container.innerHTML = `
+          <div class="bg-surface-container-low border border-surface-container-high p-6 text-center space-y-3">
+            <span class="material-symbols-outlined text-4xl text-tertiary">event_upcoming</span>
+            <h4 class="font-headline text-sm font-bold text-on-surface uppercase">ESTE GRAN PREMIO AÚN NO SE HA DISPUTADO</h4>
+            <p class="text-xs text-on-surface-variant max-w-md mx-auto leading-relaxed">
+              Los resultados oficiales de la FIA estarán disponibles automáticamente una vez concluida la carrera el <strong class="text-secondary">${race.date}</strong>.
+            </p>
+            <div class="pt-2 font-label-telemetry text-xs text-secondary">
+              Consulta los horarios de clasificación y entrenamientos a la izquierda.
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // Si ya están en caché y no se fuerza recarga, renderizar directamente
+      if (!forceRefresh && appState.officialResultsCache[round]) {
+        if (syncStatus) syncStatus.textContent = "RESULTADOS EN MEMORIA";
+        renderOfficialClassificationTable(appState.officialResultsCache[round]);
+        return;
+      }
+
+      // Si no están en caché o se pulsa el botón, consultar la API
+      if (fetchIcon) fetchIcon.classList.add('animate-spin');
+      if (syncStatus) syncStatus.textContent = "CONSULTANDO API FIA...";
+      container.innerHTML = `
+        <div class="p-8 text-center space-y-2 font-label-telemetry text-xs text-on-surface-variant">
+          <span class="material-symbols-outlined text-3xl text-secondary animate-spin">refresh</span>
+          <p>Descargando clasificación y tiempos oficiales del Round ${round}...</p>
+        </div>
+      `;
+
+      try {
+        const season = appState.season || "current";
+        // Intentar endpoints oficiales (por temporada o current)
+        let response = await fetch(`https://api.jolpi.ca/ergast/f1/${season}/${round}/results.json`);
+        if (!response.ok) {
+          response = await fetch(`https://api.jolpi.ca/ergast/f1/current/${round}/results.json`);
+        }
+
+        const data = await response.json();
+        const raceData = data?.MRData?.RaceTable?.Races?.[0];
+        const results = raceData?.Results;
+
+        if (Array.isArray(results) && results.length > 0) {
+          // Guardar en caché global del estado para portabilidad en JSON
+          appState.officialResultsCache[round] = {
+            fetchedAt: new Date().toISOString(),
+            raceName: raceData.raceName || race.raceName,
+            season: raceData.season || season,
+            results: results.map(r => ({
+              position: parseInt(r.position),
+              number: r.number,
+              driverName: `${r.Driver.givenName} ${r.Driver.familyName}`,
+              nationality: r.Driver.nationality,
+              driverCode: r.Driver.code || "",
+              team: r.Constructor.name,
+              laps: r.laps,
+              status: r.status,
+              time: r.Time ? r.Time.time : r.status,
+              points: parseFloat(r.points),
+              fastestLap: r.FastestLap ? {
+                rank: r.FastestLap.rank,
+                lap: r.FastestLap.lap,
+                time: r.FastestLap.Time ? r.FastestLap.Time.time : ""
+              } : null
+            }))
+          };
+
+          if (syncStatus) syncStatus.textContent = "SINCRONIZADO OK";
+          renderOfficialClassificationTable(appState.officialResultsCache[round]);
+        } else {
+          showNoResultsAvailable(round, race);
+        }
+      } catch (err) {
+        console.warn("Fallo al leer resultados oficiales de la API", err);
+        // Si hay caché previa mostrarla, si no mostrar aviso
+        if (appState.officialResultsCache[round]) {
+          renderOfficialClassificationTable(appState.officialResultsCache[round]);
+          if (syncStatus) syncStatus.textContent = "CACHE LOCAL (OFFLINE)";
+        } else {
+          showNoResultsAvailable(round, race);
+        }
+      } finally {
+        if (fetchIcon) fetchIcon.classList.remove('animate-spin');
+      }
+    }
+
+    function showNoResultsAvailable(round, race) {
+      const container = document.getElementById('detailResultsContainer');
+      const syncStatus = document.getElementById('officialResultsSyncStatus');
+      if (syncStatus) syncStatus.textContent = "RESULTADOS PENDIENTES";
+      container.innerHTML = `
+        <div class="bg-surface-container-low border border-surface-container-high p-5 text-center space-y-2">
+          <span class="material-symbols-outlined text-3xl text-tertiary">pending</span>
+          <h4 class="font-headline text-xs sm:text-sm font-bold text-on-surface uppercase">AÚN NO HAY DATOS DE CLASIFICACIÓN PUBLICADOS</h4>
+          <p class="text-xs text-on-surface-variant max-w-sm mx-auto">
+            La FIA o el proveedor de telemetría no han publicado la hoja de tiempos oficial para este Gran Premio todavía.
+          </p>
+          <button onclick="fetchOfficialResultsForDetail(true)" class="mt-2 px-3 py-1.5 bg-surface-container hover:bg-surface-container-high border border-surface-container-highest text-secondary text-xs font-label-caps uppercase font-bold inline-flex items-center gap-1">
+            <span class="material-symbols-outlined text-[15px]">refresh</span> REINTENTAR AHORA
+          </button>
+        </div>
+      `;
+    }
+
+    /**
+     * DIBUJA LA TABLA OFICIAL COMPLETA DE CLASIFICACIÓN DE LA FIA
+     */
+    function renderOfficialClassificationTable(cacheItem) {
+      const container = document.getElementById('detailResultsContainer');
+      if (!container || !cacheItem || !cacheItem.results) return;
+
+      const fastestOverall = cacheItem.results.find(r => r.fastestLap && String(r.fastestLap.rank) === "1");
+
+      let html = `
+        <div class="space-y-3 font-label-telemetry">
+          ${fastestOverall ? `
+            <div class="bg-surface-container-low border-l-2 border-[#b026ff] p-2 sm:p-2.5 flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2">
+                <span class="bg-[#b026ff]/20 text-[#b026ff] px-1.5 py-0.5 text-[10px] font-bold border border-[#b026ff]/50">VUELTA RÁPIDA</span>
+                <span class="font-bold text-on-surface">${fastestOverall.driverName}</span>
+                <span class="text-on-surface-variant text-[11px]">(${fastestOverall.team})</span>
+              </div>
+              <div class="text-[#b026ff] font-bold font-mono">
+                ${fastestOverall.fastestLap.time} <span class="text-[10px] text-on-surface-variant">(V.${fastestOverall.fastestLap.lap})</span>
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="overflow-x-auto custom-scrollbar border border-surface-container-highest">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-surface-container-low border-b border-surface-container-highest font-label-caps text-on-surface-variant text-[10px]">
+                  <th class="py-2 px-2 text-center w-8">POS</th>
+                  <th class="py-2 px-1 text-center w-7">N°</th>
+                  <th class="py-2 px-2.5">PILOTO</th>
+                  <th class="py-2 px-2.5 hidden sm:table-cell">ESCUDERÍA</th>
+                  <th class="py-2 px-1 text-center hidden md:table-cell">VTS</th>
+                  <th class="py-2 px-2 text-right">TIEMPO / DELTA</th>
+                  <th class="py-2 px-2.5 text-right font-bold text-secondary">PTS</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-surface-container-high">
+      `;
+
+      cacheItem.results.forEach(r => {
+        const isPodium = r.position <= 3;
+        const color = getTeamColor(r.team);
+        const hasFastestLap = r.fastestLap && String(r.fastestLap.rank) === "1";
+
+        let posBadge = `<span class="font-bold">${r.position}</span>`;
+        if (r.position === 1) posBadge = `<span class="inline-block w-5 h-5 bg-tertiary text-background font-bold text-xs leading-5 text-center">1</span>`;
+        else if (r.position === 2) posBadge = `<span class="inline-block w-5 h-5 bg-slate-300 text-background font-bold text-xs leading-5 text-center">2</span>`;
+        else if (r.position === 3) posBadge = `<span class="inline-block w-5 h-5 bg-[#c87a3e] text-background font-bold text-xs leading-5 text-center">3</span>`;
+
+        html += `
+          <tr class="${isPodium ? 'bg-surface-container/40' : 'hover:bg-surface-container-low'} transition-colors">
+            <td class="py-2 px-2 text-center">${posBadge}</td>
+            <td class="py-2 px-1 text-center text-on-surface-variant font-bold text-xs">#${r.number}</td>
+            <td class="py-2 px-2.5">
+              <div class="flex items-center gap-1.5">
+                <span class="w-1.5 h-3 inline-block flex-shrink-0" style="background-color: ${color}"></span>
+                <span class="font-headline font-bold ${isPodium ? 'text-on-surface' : 'text-on-surface'} truncate text-xs sm:text-sm">
+                  ${r.driverName}
+                </span>
+                ${hasFastestLap ? `<span class="text-[10px] text-[#b026ff] font-bold" title="Vuelta rápida de carrera">🟣</span>` : ''}
+              </div>
+            </td>
+            <td class="py-2 px-2.5 hidden sm:table-cell text-on-surface-variant truncate max-w-[130px]">${r.team}</td>
+            <td class="py-2 px-1 text-center hidden md:table-cell text-on-surface-variant font-mono text-[11px]">${r.laps}</td>
+            <td class="py-2 px-2 text-right text-xs ${r.status === 'Finished' || r.time.includes(':') || r.time.includes('+') ? 'text-on-surface' : 'text-error'} font-mono">
+              ${r.time}
+            </td>
+            <td class="py-2 px-2.5 text-right font-bold ${r.points > 0 ? 'text-secondary font-headline' : 'text-on-surface-variant'}">
+              ${r.points > 0 ? `+${r.points}` : '0'}
+            </td>
+          </tr>
+        `;
+      });
+
+      html += `
+              </tbody>
+            </table>
+          </div>
+          <div class="flex items-center justify-between text-[10px] text-on-surface-variant pt-1">
+            <span>CLASIFICACIÓN OFICIAL HOMOLOGADA POR LA FIA</span>
+            <span>🟣 = VUELTA RÁPIDA</span>
+          </div>
+        </div>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    /**
+     * PORTABILIDAD TOTAL: EXPORTAR E IMPORTAR JSON
+     */
+    function exportToJSON() {
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        version: "5.0-automated",
+        appState: appState
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `apex_f1_telemetry_${appState.season}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function importFromJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (parsed && parsed.appState) {
+            appState = parsed.appState;
+            findNextRaceIndex();
+            renderAllViews();
+            alert("¡Telemetría, clasificaciones y resultados oficiales importados correctamente!");
+          }
+        } catch (err) {
+          console.error("Error al importar fichero JSON", err);
+          alert("Error al importar el fichero JSON.");
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function renderAllViews() {
+      document.getElementById('topSeasonBadge').textContent = appState.season;
+      document.getElementById('driversSeasonBadge').textContent = appState.season;
+
+      renderHero();
+      renderDriversTable();
+      renderConstructorsCards();
+      renderCalendar();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      startClock();
+      fetchF1Data(false);
+    });
+  </script>
+</body>
+</html>
